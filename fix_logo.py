@@ -13,7 +13,7 @@ with zipfile.ZipFile('favicon.zip', 'r') as zip_ref:
 original_path = None
 for root, dirs, files in os.walk('temp_original'):
     for f in files:
-        if f.name == 'favicon.png' or f.endswith('.png'):
+        if f == 'favicon.png' or f.endswith('.png'):
             original_path = os.path.join(root, f)
             break
 

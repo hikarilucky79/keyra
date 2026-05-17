@@ -55,11 +55,13 @@ cp -r "$FLUTTER_BUNDLE/"* "$TEMP_DIR/opt/keyra/"
 cp "$PACKAGING_DIR/keyra.desktop" "$TEMP_DIR/usr/share/applications/keyra.desktop"
 cp "$PACKAGING_DIR/keyra.service" "$TEMP_DIR/usr/lib/systemd/user/keyra.service"
 
-# Copy icon — try multiple locations
-if [ -f "$WORKSPACE_DIR/keyra-flutter/assets/icons/tray_icon.png" ]; then
-    cp "$WORKSPACE_DIR/keyra-flutter/assets/icons/tray_icon.png" "$TEMP_DIR/usr/share/pixmaps/keyra.png"
-elif [ -f "$WORKSPACE_DIR/app_logo.png" ]; then
+# Copy icon — try multiple locations (prioritizing high-resolution main logo)
+if [ -f "$WORKSPACE_DIR/app_logo.png" ]; then
     cp "$WORKSPACE_DIR/app_logo.png" "$TEMP_DIR/usr/share/pixmaps/keyra.png"
+elif [ -f "$WORKSPACE_DIR/keyra-flutter/assets/icons/app_icon.png" ]; then
+    cp "$WORKSPACE_DIR/keyra-flutter/assets/icons/app_icon.png" "$TEMP_DIR/usr/share/pixmaps/keyra.png"
+elif [ -f "$WORKSPACE_DIR/keyra-flutter/assets/icons/tray_icon.png" ]; then
+    cp "$WORKSPACE_DIR/keyra-flutter/assets/icons/tray_icon.png" "$TEMP_DIR/usr/share/pixmaps/keyra.png"
 fi
 
 # Create symlink for the UI

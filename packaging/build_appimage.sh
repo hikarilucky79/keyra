@@ -49,11 +49,13 @@ echo "-> Copying binaries and configuration assets..."
 cp "$DAEMON_BIN" "$APPDIR/usr/bin/keyra-daemon"
 cp -r "$FLUTTER_BUNDLE/"* "$APPDIR/usr/bin/"
 
-# Copy icon — try multiple locations
-if [ -f "$WORKSPACE_DIR/keyra-flutter/assets/icons/tray_icon.png" ]; then
-    cp "$WORKSPACE_DIR/keyra-flutter/assets/icons/tray_icon.png" "$APPDIR/keyra.png"
-elif [ -f "$WORKSPACE_DIR/app_logo.png" ]; then
+# Copy icon — try multiple locations (prioritizing high-resolution main logo)
+if [ -f "$WORKSPACE_DIR/app_logo.png" ]; then
     cp "$WORKSPACE_DIR/app_logo.png" "$APPDIR/keyra.png"
+elif [ -f "$WORKSPACE_DIR/keyra-flutter/assets/icons/app_icon.png" ]; then
+    cp "$WORKSPACE_DIR/keyra-flutter/assets/icons/app_icon.png" "$APPDIR/keyra.png"
+elif [ -f "$WORKSPACE_DIR/keyra-flutter/assets/icons/tray_icon.png" ]; then
+    cp "$WORKSPACE_DIR/keyra-flutter/assets/icons/tray_icon.png" "$APPDIR/keyra.png"
 else
     echo "Warning: No icon file found, using placeholder."
     printf '\x89PNG\r\n\x1a\n' > "$APPDIR/keyra.png"

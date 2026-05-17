@@ -107,8 +107,8 @@ preparar_repositorio_git() {
         fi
     fi
 
-    # Adiciona README.md, preview e scripts alterados ao Git
-    git add "$WORKSPACE_DIR/README.md" "$WORKSPACE_DIR/public/keyra_preview.png" "$WORKSPACE_DIR/packaging/build_deb.sh" 2>/dev/null || true
+    # Adiciona README.md, preview, logotipos, ícones e scripts alterados ao Git
+    git add -A 2>/dev/null || true
     
     if ! git diff --cached --quiet; then
         echo -e "${YELLOW}Encontradas alterações de documentação/scripts. Criando commit de preparação...${NC}"
@@ -167,7 +167,11 @@ publicar_github() {
     # Criar e empurrar a tag de Release para disparar o CI/CD
     echo -e "\n${BLUE}Configurando tag de versão ${TAG_VERSION}...${NC}"
     if git tag -l | grep -q "${TAG_VERSION}"; then
-        echo -e "${YELLOW}A tag ${TAG_VERSION} já existe localmente.${NC}"
+        echo -e "${YELLOW}A tag ${TAG_VERSION} já existe. Recriando-a local e remotamente para aplicar as novas correções...${NC}"
+        git tag -d "${TAG_VERSION}" 2>/dev/null || true
+        git push origin --delete "${TAG_VERSION}" 2>/dev/null || true
+        git tag "${TAG_VERSION}"
+        echo -e "${GREEN}✓ Tag ${TAG_VERSION} recriada com sucesso!${NC}"
     else
         git tag "${TAG_VERSION}"
         echo -e "${GREEN}✓ Tag ${TAG_VERSION} criada localmente!${NC}"
