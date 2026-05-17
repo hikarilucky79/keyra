@@ -1,6 +1,6 @@
 [package]
 name = "keyra-daemon"
-version = "0.1.1"
+version = "0.1.0"
 edition = "2021"
 description = "Keyra daemon - low-latency typing sound engine"
 default-run = "keyra-daemon"
