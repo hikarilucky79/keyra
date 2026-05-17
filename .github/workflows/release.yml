@@ -10,74 +10,6 @@ permissions:
 
 jobs:
   # ═══════════════════════════════════════════════════════════
-  #  🪟  Windows x64 — Portable .zip
-  # ═══════════════════════════════════════════════════════════
-  windows:
-    name: 🪟 Windows x64
-    runs-on: windows-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Rust
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: x86_64-pc-windows-msvc
-
-      - name: Setup Flutter
-        uses: subosito/flutter-action@v2
-        with:
-          channel: stable
-          flutter-version: 3.24.0
-
-      - name: Cache Flutter & Rust
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/AppData/Local/Pub/Cache
-            ~/.cargo/bin
-            ~/.cargo/registry
-            ~/.cargo/git
-          key: windows-${{ hashFiles('**/Cargo.lock', '**/pubspec.lock') }}
-          restore-keys: |
-            windows-
-
-      - name: Build keyra-daemon
-        run: |
-          cd keyra-daemon
-          cargo build --release
-
-      - name: Build keyra-flutter (Windows)
-        run: |
-          cd keyra-flutter
-          flutter pub get
-          flutter build windows --release
-
-      - name: Package release zip
-        shell: bash
-        run: |
-          mkdir -p dist
-          cp keyra-daemon/target/release/keyra-daemon.exe dist/
-
-          # Flutter Windows output path varies — find it dynamically
-          FLUTTER_OUT=$(find keyra-flutter/build/windows -name "keyra_app.exe" -type f 2>/dev/null | head -1)
-          if [ -z "$FLUTTER_OUT" ]; then
-            echo "ERROR: keyra_app.exe not found in Flutter build output"
-            find keyra-flutter/build/windows -type f -name "*.exe" || true
-            exit 1
-          fi
-          FLUTTER_DIR=$(dirname "$FLUTTER_OUT")
-          cp -r "$FLUTTER_DIR"/* dist/
-
-          powershell Compress-Archive -Path 'dist/*' -DestinationPath 'Keyra-Windows-x64.zip'
-
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: windows-release
-          path: Keyra-Windows-x64.zip
-
-  # ═══════════════════════════════════════════════════════════
   #  🐧  Linux — .deb + .AppImage
   # ═══════════════════════════════════════════════════════════
   linux:
@@ -150,7 +82,7 @@ jobs:
   # ═══════════════════════════════════════════════════════════
   release:
     name: 📦 Publish Release
-    needs: [windows, linux]
+    needs: [linux]
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
     steps:
@@ -165,7 +97,7 @@ jobs:
       - name: Collect release files
         run: |
           mkdir -p final
-          find release-assets -type f \( -name "*.zip" -o -name "*.AppImage" -o -name "*.deb" \) -exec cp {} final/ \;
+          find release-assets -type f \( -name "*.AppImage" -o -name "*.deb" \) -exec cp {} final/ \;
           echo "=== Release files ==="
           ls -lh final/
 
@@ -176,7 +108,7 @@ jobs:
           body: |
             ## ⌨️ Keyra ${{ github.ref_name }}
 
-            **Premium low-latency typing sound engine & real-time mechanical keyboard visualizer.**
+            **Premium low-latency typing sound engine & real-time mechanical keyboard visualizer (Linux Native).**
 
             ---
 
@@ -186,7 +118,6 @@ jobs:
             |---|---|---|
             | 🐧 Linux (Ubuntu/Debian) | `.deb` | `keyra_*_amd64.deb` |
             | 🐧 Linux (Universal) | `.AppImage` | `Keyra-x86_64.AppImage` |
-            | 🪟 Windows 10/11 | `.zip` (portátil) | `Keyra-Windows-x64.zip` |
 
             ### 🐧 Instalação no Linux
 
@@ -200,11 +131,6 @@ jobs:
             chmod +x Keyra-x86_64.AppImage
             ./Keyra-x86_64.AppImage
             ```
-
-            ### 🪟 Instalação no Windows
-
-            1. Extraia o arquivo `Keyra-Windows-x64.zip`
-            2. Execute `keyra_app.exe`
 
             ---
 
