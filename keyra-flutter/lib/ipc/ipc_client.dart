@@ -51,13 +51,23 @@ class KeyraIpcClient {
   final BytesBuilder _readBuffer = BytesBuilder(copy: false);
 
   // ── Socket path (computed once) ──────────────────────────────────
-  late final String _primaryPath = _resolveSocketPath();
-  static const _fallbackPath = '/tmp/keyra.sock';
+  late final String _primaryPath = _resolveSocketPath(isPrimary: true);
+  late final String _fallbackPath = _resolveSocketPath(isPrimary: false);
 
-  static String _resolveSocketPath() {
-    final uid = Platform.environment['UID'] ??
-        Process.runSync('id', ['-u']).stdout.toString().trim();
-    return '/run/user/$uid/keyra.sock';
+  static String _resolveSocketPath({required bool isPrimary}) {
+    if (Platform.isWindows) {
+      final tempDir = Directory.systemTemp.path;
+      final name = isPrimary ? 'keyra.sock' : 'keyra_fallback.sock';
+      return '$tempDir${Platform.pathSeparator}$name';
+    } else {
+      if (isPrimary) {
+        final uid = Platform.environment['UID'] ??
+            Process.runSync('id', ['-u']).stdout.toString().trim();
+        return '/run/user/$uid/keyra.sock';
+      } else {
+        return '/tmp/keyra.sock';
+      }
+    }
   }
 
   // ── Public API ───────────────────────────────────────────────────

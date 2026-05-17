@@ -63,7 +63,7 @@ executar_build_local() {
         
         echo -e "\n${BLUE}-> Montando pacote portátil Windows...${NC}"
         mkdir -p "$WORKSPACE_DIR/packaging/win_release"
-        cp -r "$WORKSPACE_DIR/keyra-flutter/build/windows/x64/release/runner/"* "$WORKSPACE_DIR/packaging/win_release/"
+        cp -r "$WORKSPACE_DIR/keyra-flutter/build/windows/x64/runner/release/"* "$WORKSPACE_DIR/packaging/win_release/"
         cp "$WORKSPACE_DIR/keyra-daemon/target/release/keyra-daemon.exe" "$WORKSPACE_DIR/packaging/win_release/"
         
         cd "$WORKSPACE_DIR/packaging"

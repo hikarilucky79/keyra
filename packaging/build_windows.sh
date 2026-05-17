@@ -59,7 +59,7 @@ fi
 
 flutter build windows --release
 
-FLUTTER_EXE="$WORKSPACE_DIR/keyra-flutter/build/windows/x64/Release/runner/Release/keyra_app.exe"
+FLUTTER_EXE="$WORKSPACE_DIR/keyra-flutter/build/windows/x64/runner/Release/keyra_app.exe"
 if [ ! -f "$FLUTTER_EXE" ]; then
   echo "Error: $FLUTTER_EXE not found after build."
   exit 1

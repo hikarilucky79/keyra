@@ -129,7 +129,7 @@ jobs:
         run: |
           New-Item -ItemType Directory -Force -Path final-windows
           # Copy all Flutter application files
-          Copy-Item -Path "keyra-flutter\build\windows\x64\Release\runner\Release\*" -Destination "final-windows" -Recurse -Force
+          Copy-Item -Path "keyra-flutter\build\windows\x64\runner\Release\*" -Destination "final-windows" -Recurse -Force
           # Copy Rust daemon exe
           Copy-Item -Path "target\release\keyra-daemon.exe" -Destination "final-windows\keyra-daemon.exe" -Force
           # Create zip file in packaging directory
