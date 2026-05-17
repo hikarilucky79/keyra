@@ -1,7 +1,19 @@
 # ⌨️ Keyra - Mechanical Keyboard Visualizer & Sound Generator
 
-<div align="center">
-  <img src="public/favicon.png" alt="Keyra Logo" width="200" style="border-radius: 24px; box-shadow: 0 8px 30px rgba(0,0,0,0.35);" />
+
+ <div align="center">
+   <!-- 🟢 LOGO 100% REDONDO, SEM FUNDO, BONITO -->
+   <img 
+     src="public/favicon.png" 
+     alt="Keyra Logo" 
+     width="180" 
+     style="
+       border-radius: 50%; 
+       background-color: #090a0f; 
+       padding: 12px; 
+       box-shadow: 0 8px 30px rgba(124, 77, 255, 0.35);
+     " 
+   />
   
   <p align="center">
     <strong>Uma experiência premium de customização visual e sonora para o seu teclado.</strong>
