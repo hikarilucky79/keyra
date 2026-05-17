@@ -3,6 +3,7 @@
 //! Defines the message schema for Unix Domain Socket communication
 //! between the frontend client and the keyra daemon.
 
+#[cfg(unix)]
 #[allow(dead_code)]
 pub mod client;
 pub mod server;

@@ -656,10 +656,13 @@ fn map_mechvibes_key(mv_key: &str) -> String {
             221 => "rightbrace".to_string(),
             222 => "apostrophe".to_string(),
             _ => {
-                // Try evdev keycode fallback for non-JS codes
-                let key = evdev::Key::new(code);
-                if let Some(name) = crate::input::key_to_name(key) {
-                    return name.to_string();
+                #[cfg(unix)]
+                {
+                    // Try evdev keycode fallback for non-JS codes
+                    let key = evdev::Key::new(code);
+                    if let Some(name) = crate::input::key_to_name(key) {
+                        return name.to_string();
+                    }
                 }
                 format!("key_{}", code)
             }
