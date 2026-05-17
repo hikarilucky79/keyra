@@ -1,25 +1,43 @@
 //! IPC server for Keyra daemon.
-//!
-//! Binds to a Unix Domain Socket and handles multiple client connections
-//! concurrently using spawn_blocking with synchronous non-blocking I/O.
 
-use crate::ipc::{Command, Event, Message, MessagePayload};
 use crate::state::StateManager;
-use anyhow::{Context, Result};
-use nix::unistd::unlink;
-use std::collections::HashMap;
-use std::io::{self, Read, Write};
-use std::os::unix::net::{UnixListener, UnixStream};
+use anyhow::{Result};
 use std::path::PathBuf;
 use std::sync::mpsc;
 use std::sync::Arc;
-use std::time::{Duration, Instant};
 use tokio::sync::broadcast;
+
+/// Events from the IPC server to the async runtime.
+#[allow(dead_code)]
+pub enum ServerEvent {
+    ClientConnected(usize),
+    ClientDisconnected(usize),
+}
+
+// ═══════════════════════════════════════════════════════════
+//  🐧 Linux / Unix Implementation (Unix Domain Sockets)
+// ═══════════════════════════════════════════════════════════
+#[cfg(unix)]
+use crate::ipc::{Command, Event, Message, MessagePayload};
+#[cfg(unix)]
+use anyhow::Context;
+#[cfg(unix)]
+use nix::unistd::unlink;
+#[cfg(unix)]
+use std::collections::HashMap;
+#[cfg(unix)]
+use std::io::{self, Read, Write};
+#[cfg(unix)]
+use std::os::unix::net::{UnixListener, UnixStream};
+#[cfg(unix)]
+use std::time::{Duration, Instant};
+#[cfg(unix)]
 use crate::packs::import_soundpack;
 
+#[cfg(unix)]
 const STALE_SOCKET_MAX_AGE_SECS: u64 = 5;
 
-/// IPC server that accepts connections and dispatches commands.
+#[cfg(unix)]
 pub struct IpcServer {
     socket_path: PathBuf,
     fallback_socket_path: PathBuf,
@@ -29,6 +47,7 @@ pub struct IpcServer {
     import_session: Arc<parking_lot::Mutex<Option<crate::importer::ImportSession>>>,
 }
 
+#[cfg(unix)]
 impl IpcServer {
     pub fn new(
         socket_path: PathBuf,
@@ -79,9 +98,6 @@ impl IpcServer {
         match stream.read_exact(&mut json_buf) {
             Ok(()) => {}
             Err(e) if e.kind() == io::ErrorKind::WouldBlock || e.kind() == io::ErrorKind::TimedOut => {
-                // We read the length but the body isn't ready. 
-                // Since this is a UDS and we're in a dedicated thread, 
-                // we can afford a very brief block to finish the read.
                 stream.set_nonblocking(false)?;
                 let res = stream.read_exact(&mut json_buf);
                 stream.set_nonblocking(true)?;
@@ -253,7 +269,6 @@ impl IpcServer {
         None
     }
 
-    /// Run the server in a blocking thread. Returns a receiver for server events.
     pub fn run(self) -> Result<mpsc::Receiver<ServerEvent>> {
         self.cleanup_stale_socket(&self.socket_path);
         self.cleanup_stale_socket(&self.fallback_socket_path);
@@ -291,17 +306,14 @@ impl IpcServer {
             let mut ipc_rx = state_manager.ipc_tx().subscribe();
 
             loop {
-                // Check shutdown (non-blocking)
                 match shutdown_rx.try_recv() {
                     Ok(_) | Err(tokio::sync::broadcast::error::TryRecvError::Closed) => {
                         tracing::info!("IPC server shutting down");
                         break;
                     }
-                    Err(tokio::sync::broadcast::error::TryRecvError::Empty) => {}
-                    Err(tokio::sync::broadcast::error::TryRecvError::Lagged(_)) => {}
+                    _ => {}
                 }
 
-                // Accept new connections
                 match listener.accept() {
                     Ok((mut stream, _addr)) => {
                         let id = next_id;
@@ -313,7 +325,6 @@ impl IpcServer {
                         }
                         let _ = stream.set_read_timeout(Some(Duration::from_millis(100)));
 
-                        // Send initial state
                         let state = state_manager.get_state();
                         let event = Event::StateUpdated {
                             volume: state.volume,
@@ -335,10 +346,7 @@ impl IpcServer {
                     Err(e) => tracing::warn!("Accept error: {}", e),
                 }
 
-                // Collect IDs first to avoid borrow conflicts
                 let client_ids: Vec<usize> = clients.keys().cloned().collect();
-
-                // Process existing client messages
                 let mut dead_clients = Vec::new();
 
                 for id in &client_ids {
@@ -373,7 +381,6 @@ impl IpcServer {
                     changed = true;
                 }
 
-                // Prune stale clients
                 let now = Instant::now();
                 let stale: Vec<usize> = clients
                     .iter()
@@ -387,7 +394,6 @@ impl IpcServer {
                     changed = true;
                 }
 
-                // Broadcast events from the daemon to all clients
                 loop {
                     match ipc_rx.try_recv() {
                         Ok(msg) => {
@@ -398,18 +404,15 @@ impl IpcServer {
                         Err(tokio::sync::broadcast::error::TryRecvError::Empty) => break,
                         Err(tokio::sync::broadcast::error::TryRecvError::Closed) => break,
                         Err(tokio::sync::broadcast::error::TryRecvError::Lagged(_)) => {
-                            // Lagged means we missed some messages; just keep going to catch up
                             continue;
                         }
                     }
                 }
 
-                // Update client count in state
                 if changed {
                     state_manager.set_clients_connected(clients.len());
                 }
 
-                // Small sleep to avoid busy-looping (~1kHz poll)
                 std::thread::sleep(Duration::from_micros(100));
             }
         });
@@ -418,9 +421,47 @@ impl IpcServer {
     }
 }
 
-/// Events from the IPC server to the async runtime.
-#[allow(dead_code)]
-pub enum ServerEvent {
-    ClientConnected(usize),
-    ClientDisconnected(usize),
+// ═══════════════════════════════════════════════════════════
+//  🪟 Windows / Stub Implementation
+// ═══════════════════════════════════════════════════════════
+#[cfg(not(unix))]
+pub struct IpcServer {
+    shutdown_rx: broadcast::Receiver<()>,
+}
+
+#[cfg(not(unix))]
+impl IpcServer {
+    pub fn new(
+        _socket_path: PathBuf,
+        _fallback_socket_path: PathBuf,
+        _state_manager: Arc<StateManager>,
+        _update_manager: Arc<crate::updater::UpdateManager>,
+        shutdown_rx: broadcast::Receiver<()>,
+    ) -> Self {
+        Self { shutdown_rx }
+    }
+
+    pub fn run(self) -> Result<mpsc::Receiver<ServerEvent>> {
+        let (event_tx, event_rx) = mpsc::channel();
+        let mut shutdown_rx = self.shutdown_rx;
+
+        std::thread::spawn(move || {
+            tracing::warn!("IPC UDS server is not supported on Windows. Running in background stub mode.");
+            loop {
+                // Check shutdown signal
+                match shutdown_rx.try_recv() {
+                    Ok(_) | Err(tokio::sync::broadcast::error::TryRecvError::Closed) => {
+                        tracing::info!("IPC stub server shutting down");
+                        break;
+                    }
+                    _ => {}
+                }
+                std::thread::sleep(std::time::Duration::from_millis(500));
+            }
+            // Keep compiler happy about unused sender
+            drop(event_tx);
+        });
+
+        Ok(event_rx)
+    }
 }

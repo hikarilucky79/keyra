@@ -69,7 +69,7 @@ jobs:
           chmod +x packaging/build_appimage.sh
           bash packaging/build_appimage.sh
 
-      - name: Upload artifacts
+      - name: Upload Linux artifacts
         uses: actions/upload-artifact@v4
         with:
           name: linux-release
@@ -78,11 +78,76 @@ jobs:
             packaging/keyra_*.deb
 
   # ═══════════════════════════════════════════════════════════
+  #  🪟  Windows — .zip containing .exe
+  # ═══════════════════════════════════════════════════════════
+  windows:
+    name: 🪟 Windows x64
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
+          target: x86_64-pc-windows-msvc
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+
+      - name: Cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~\AppData\Local\Pub\Cache
+            ~\.cargo\registry
+            ~\.cargo\git
+          key: windows-${{ hashFiles('**/Cargo.lock', '**/pubspec.lock') }}
+          restore-keys: |
+            windows-
+
+      - name: Enable Windows desktop build
+        run: |
+          flutter config --enable-windows-desktop
+
+      - name: Build keyra-daemon
+        run: |
+          cd keyra-daemon
+          cargo build --release
+
+      - name: Build keyra-flutter (Windows)
+        run: |
+          cd keyra-flutter
+          flutter pub get
+          flutter build windows --release
+
+      - name: Package Windows ZIP
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path final-windows
+          # Copy all Flutter application files
+          Copy-Item -Path "keyra-flutter\build\windows\x64\Release\runner\Release\*" -Destination "final-windows" -Recurse -Force
+          # Copy Rust daemon exe
+          Copy-Item -Path "target\release\keyra-daemon.exe" -Destination "final-windows\keyra-daemon.exe" -Force
+          # Create zip file in packaging directory
+          New-Item -ItemType Directory -Force -Path packaging
+          Compress-Archive -Path final-windows\* -DestinationPath packaging\Keyra-Windows-x64.zip
+
+      - name: Upload Windows artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-release
+          path: packaging/Keyra-Windows-x64.zip
+
+  # ═══════════════════════════════════════════════════════════
   #  📦  Publish GitHub Release
   # ═══════════════════════════════════════════════════════════
   release:
     name: 📦 Publish Release
-    needs: [linux]
+    needs: [linux, windows]
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
     steps:
@@ -97,7 +162,7 @@ jobs:
       - name: Collect release files
         run: |
           mkdir -p final
-          find release-assets -type f \( -name "*.AppImage" -o -name "*.deb" \) -exec cp {} final/ \;
+          find release-assets -type f \( -name "*.AppImage" -o -name "*.deb" -o -name "*.zip" \) -exec cp {} final/ \;
           echo "=== Release files ==="
           ls -lh final/
 
@@ -108,7 +173,7 @@ jobs:
           body: |
             ## ⌨️ Keyra ${{ github.ref_name }}
 
-            **Premium low-latency typing sound engine & real-time mechanical keyboard visualizer (Linux Native).**
+            **Premium low-latency typing sound engine & real-time mechanical keyboard visualizer.**
 
             ---
 
@@ -116,8 +181,13 @@ jobs:
 
             | Plataforma | Formato | Arquivo |
             |---|---|---|
+            | 🪟 Windows | `.zip` | `Keyra-Windows-x64.zip` |
             | 🐧 Linux (Ubuntu/Debian) | `.deb` | `keyra_*_amd64.deb` |
             | 🐧 Linux (Universal) | `.AppImage` | `Keyra-x86_64.AppImage` |
+
+            ### 🪟 Instalação no Windows
+            1. Baixe e extraia o arquivo `Keyra-Windows-x64.zip`.
+            2. Execute o `keyra_app.exe` (a interface gráfica iniciará o daemon automaticamente em segundo plano).
 
             ### 🐧 Instalação no Linux
 

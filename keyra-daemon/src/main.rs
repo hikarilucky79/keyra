@@ -3,28 +3,33 @@
 //! Starts the IPC server, audio engine, and input listener.
 //! Handles graceful shutdown on SIGTERM/SIGINT.
 
-use std::sync::Arc;
 use anyhow::{Context, Result};
 use std::fs;
 use std::path::PathBuf;
 use std::process;
+use std::sync::Arc;
 use tracing::{info, warn, Level};
 
 use keyra_daemon::audio::{self, AudioEngine};
 use keyra_daemon::input::InputMonitor;
 use keyra_daemon::ipc::{self, server::IpcServer};
+use keyra_daemon::migration;
 use keyra_daemon::state::{AudioSignal, StateManager};
 use keyra_daemon::updater::UpdateManager;
-use keyra_daemon::migration;
 use keyra_daemon::window_monitor::WindowMonitor;
 
-/// Write PID file to /run/user/$UID/keyra.pid
+/// Write PID file to /run/user/$UID/keyra.pid (Unix) or temp dir (Windows)
+#[cfg(unix)]
 fn write_pid_file() -> Result<PathBuf> {
     let uid = nix::unistd::geteuid().as_raw();
     let pid_dir = PathBuf::from("/run").join(format!("user/{}", uid));
 
     if let Err(e) = fs::create_dir_all(&pid_dir) {
-        warn!("Failed to create PID directory {}: {}", pid_dir.display(), e);
+        warn!(
+            "Failed to create PID directory {}: {}",
+            pid_dir.display(),
+            e
+        );
         let fallback = PathBuf::from("/tmp/keyra.pid");
         fs::write(&fallback, process::id().to_string())
             .with_context(|| format!("Failed to write PID file at {}", fallback.display()))?;
@@ -32,6 +37,15 @@ fn write_pid_file() -> Result<PathBuf> {
     }
 
     let pid_path = pid_dir.join("keyra.pid");
+    fs::write(&pid_path, process::id().to_string())
+        .with_context(|| format!("Failed to write PID file at {}", pid_path.display()))?;
+    Ok(pid_path)
+}
+
+#[cfg(not(unix))]
+fn write_pid_file() -> Result<PathBuf> {
+    let temp_dir = std::env::temp_dir();
+    let pid_path = temp_dir.join("keyra.pid");
     fs::write(&pid_path, process::id().to_string())
         .with_context(|| format!("Failed to write PID file at {}", pid_path.display()))?;
     Ok(pid_path)
@@ -93,25 +107,38 @@ async fn main() -> Result<()> {
     let (shutdown_tx, shutdown_rx) = tokio::sync::broadcast::channel::<()>(1);
 
     // Spawn signal handler
-    let mut sigterm = tokio::signal::unix::signal(
-        tokio::signal::unix::SignalKind::terminate(),
-    )?;
-    let mut sigint = tokio::signal::unix::signal(
-        tokio::signal::unix::SignalKind::interrupt(),
-    )?;
+    #[cfg(unix)]
+    {
+        let mut sigterm =
+            tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate())?;
+        let mut sigint = tokio::signal::unix::signal(tokio::signal::unix::SignalKind::interrupt())?;
 
-    let shutdown_tx2 = shutdown_tx.clone();
-    tokio::spawn(async move {
-        tokio::select! {
-            _ = sigterm.recv() => {
-                info!("Received SIGTERM");
+        let shutdown_tx2 = shutdown_tx.clone();
+        tokio::spawn(async move {
+            tokio::select! {
+                _ = sigterm.recv() => {
+                    info!("Received SIGTERM");
+                }
+                _ = sigint.recv() => {
+                    info!("Received SIGINT");
+                }
             }
-            _ = sigint.recv() => {
-                info!("Received SIGINT");
+            let _ = shutdown_tx2.send(());
+        });
+    }
+
+    #[cfg(not(unix))]
+    {
+        let shutdown_tx2 = shutdown_tx.clone();
+        tokio::spawn(async move {
+            if let Err(e) = tokio::signal::ctrl_c().await {
+                warn!("Failed to listen for ctrl_c: {}", e);
+            } else {
+                info!("Received ctrl_c signal");
             }
-        }
-        let _ = shutdown_tx2.send(());
-    });
+            let _ = shutdown_tx2.send(());
+        });
+    }
 
     // Create state manager with IPC broadcast channel
     migration::migrate_klickity_if_needed();
@@ -128,14 +155,20 @@ async fn main() -> Result<()> {
     // Resolve and load the default sound pack
     let pack_dir = resolve_pack_dir(&app_state.pack, &app_state.config.sound_packs_dir);
     match audio_engine.load_pack(&pack_dir) {
-        Ok(count) => info!("Sound pack loaded: {} samples from '{}'", count, app_state.pack),
+        Ok(count) => info!(
+            "Sound pack loaded: {} samples from '{}'",
+            count, app_state.pack
+        ),
         Err(e) => warn!("Failed to load sound pack '{}': {}", app_state.pack, e),
     }
 
     // Start the cpal audio stream
     match audio_engine.start() {
         Ok(()) => info!("Audio engine running"),
-        Err(e) => warn!("Audio engine failed to start: {} (continuing without audio)", e),
+        Err(e) => warn!(
+            "Audio engine failed to start: {} (continuing without audio)",
+            e
+        ),
     }
 
     // ── Input Monitor ─────────────────────────────────────────────
@@ -181,15 +214,16 @@ async fn main() -> Result<()> {
                 Ok(signal) => match signal {
                     AudioSignal::VolumeChanged(vol) => {
                         let v = vol.clamp(0.0, 1.0);
-                        volume_atomic.store((v * 10000.0) as u32, std::sync::atomic::Ordering::Relaxed);
+                        volume_atomic
+                            .store((v * 10000.0) as u32, std::sync::atomic::Ordering::Relaxed);
                         info!("Audio volume updated to {:.2}", v);
                     }
                     AudioSignal::ReloadPack { name, path: _ } => {
                         let state = state_for_audio.get_state();
                         let pack_dir = resolve_pack_dir(&name, &state.config.sound_packs_dir);
-                        
+
                         info!("Reloading pack '{}' from {:?}", name, pack_dir);
-                        
+
                         if let Ok(mut shared) = shared_handle.lock() {
                             let mut samples = std::collections::HashMap::new();
                             match audio::load_pack_to_map(&pack_dir, &mut samples) {
@@ -212,9 +246,8 @@ async fn main() -> Result<()> {
                         let _ = stream_err_tx.blocking_send(());
                     }
                     AudioSignal::AudioPeak(peak) => {
-                        let _ = ipc_tx.send(ipc::Message::new_event(
-                            ipc::Event::AudioPeak { peak }
-                        ));
+                        let _ =
+                            ipc_tx.send(ipc::Message::new_event(ipc::Event::AudioPeak { peak }));
                     }
                     AudioSignal::PlayFile(path) => {
                         if let Ok(sample) = audio::AudioEngine::decode_file(&path) {
@@ -224,7 +257,10 @@ async fn main() -> Result<()> {
                                     sample_rate: sample.sample_rate,
                                     sample_channels: sample.channels,
                                     position: 0.0,
-                                    velocity: volume_atomic.load(std::sync::atomic::Ordering::Relaxed) as f32 / 10000.0,
+                                    velocity: volume_atomic
+                                        .load(std::sync::atomic::Ordering::Relaxed)
+                                        as f32
+                                        / 10000.0,
                                     pitch: 1.0,
                                 });
                             }
@@ -238,11 +274,23 @@ async fn main() -> Result<()> {
     });
 
     // ── IPC Server ────────────────────────────────────────────────
-    let uid = nix::unistd::geteuid().as_raw();
-    let socket_path = PathBuf::from("/run")
-        .join(format!("user/{}", uid))
-        .join("keyra.sock");
-    let fallback_socket_path = PathBuf::from("/tmp/keyra.sock");
+    #[cfg(unix)]
+    let (socket_path, fallback_socket_path) = {
+        let uid = nix::unistd::geteuid().as_raw();
+        let socket_path = PathBuf::from("/run")
+            .join(format!("user/{}", uid))
+            .join("keyra.sock");
+        let fallback_socket_path = PathBuf::from("/tmp/keyra.sock");
+        (socket_path, fallback_socket_path)
+    };
+
+    #[cfg(not(unix))]
+    let (socket_path, fallback_socket_path) = {
+        let temp_dir = std::env::temp_dir();
+        let socket_path = temp_dir.join("keyra.sock");
+        let fallback_socket_path = temp_dir.join("keyra_fallback.sock");
+        (socket_path, fallback_socket_path)
+    };
 
     let ipc_server = IpcServer::new(
         socket_path,
@@ -257,7 +305,7 @@ async fn main() -> Result<()> {
 
     // ── Wait for shutdown or restart ──────────────────────────────
     let mut shutdown_complete = shutdown_tx.subscribe();
-    
+
     loop {
         tokio::select! {
             _ = shutdown_complete.recv() => {
