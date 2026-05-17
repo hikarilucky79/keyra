@@ -9,15 +9,24 @@ TEMP_DIR="$PACKAGING_DIR/deb_build_temp"
 
 echo "=== Building Keyra for Debian ==="
 
-# 1. Build Rust Daemon (skip if binary already exists — CI pre-builds it)
-DAEMON_BIN="$WORKSPACE_DIR/keyra-daemon/target/release/keyra-daemon"
-if [ ! -f "$DAEMON_BIN" ]; then
+# 1. Resolve Rust Daemon Binary
+# Check root target directory first, fallback to daemon-specific target
+if [ -f "$WORKSPACE_DIR/target/release/keyra-daemon" ]; then
+    DAEMON_BIN="$WORKSPACE_DIR/target/release/keyra-daemon"
+elif [ -f "$WORKSPACE_DIR/keyra-daemon/target/release/keyra-daemon" ]; then
+    DAEMON_BIN="$WORKSPACE_DIR/keyra-daemon/target/release/keyra-daemon"
+else
     echo "-> Building keyra-daemon in release mode..."
     cd "$WORKSPACE_DIR/keyra-daemon"
     cargo build --release
-else
-    echo "-> keyra-daemon binary already present, skipping build."
+    if [ -f "$WORKSPACE_DIR/target/release/keyra-daemon" ]; then
+        DAEMON_BIN="$WORKSPACE_DIR/target/release/keyra-daemon"
+    else
+        DAEMON_BIN="$WORKSPACE_DIR/keyra-daemon/target/release/keyra-daemon"
+    fi
 fi
+
+echo "-> Using daemon binary from: $DAEMON_BIN"
 
 # 2. Build Flutter UI (skip if bundle already exists — CI pre-builds it)
 FLUTTER_BUNDLE="$WORKSPACE_DIR/keyra-flutter/build/linux/x64/release/bundle"
