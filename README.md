@@ -1,7 +1,7 @@
 # ⌨️ Keyra - Mechanical Keyboard Visualizer & Sound Generator
 
 <div align="center">
-  <img src="public/keyra_preview.png" alt="Keyra Premium macOS UI Mockup" width="800" style="border-radius: 12px; box-shadow: 0 8px 30px rgba(0,0,0,0.3);" />
+  <img src="public/favicon.png" alt="Keyra Logo" width="200" style="border-radius: 24px; box-shadow: 0 8px 30px rgba(0,0,0,0.35);" />
   
   <p align="center">
     <strong>Uma experiência premium de customização visual e sonora para o seu teclado.</strong>
