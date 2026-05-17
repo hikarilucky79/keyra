@@ -9,15 +9,25 @@ TEMP_DIR="$PACKAGING_DIR/deb_build_temp"
 
 echo "=== Building Keyra for Debian ==="
 
-# 1. Build Rust Daemon
-echo "-> Building keyra-daemon in release mode..."
-cd "$WORKSPACE_DIR/keyra-daemon"
-cargo build --release
+# 1. Build Rust Daemon (skip if binary already exists — CI pre-builds it)
+DAEMON_BIN="$WORKSPACE_DIR/keyra-daemon/target/release/keyra-daemon"
+if [ ! -f "$DAEMON_BIN" ]; then
+    echo "-> Building keyra-daemon in release mode..."
+    cd "$WORKSPACE_DIR/keyra-daemon"
+    cargo build --release
+else
+    echo "-> keyra-daemon binary already present, skipping build."
+fi
 
-# 2. Build Flutter UI
-echo "-> Building keyra-flutter in release mode..."
-cd "$WORKSPACE_DIR/keyra-flutter"
-flutter build linux --release
+# 2. Build Flutter UI (skip if bundle already exists — CI pre-builds it)
+FLUTTER_BUNDLE="$WORKSPACE_DIR/keyra-flutter/build/linux/x64/release/bundle"
+if [ ! -d "$FLUTTER_BUNDLE" ]; then
+    echo "-> Building keyra-flutter in release mode..."
+    cd "$WORKSPACE_DIR/keyra-flutter"
+    flutter build linux --release
+else
+    echo "-> Flutter Linux bundle already present, skipping build."
+fi
 
 # 3. Create Debian Package Structure
 echo "-> Constructing debian package layout..."
@@ -31,19 +41,30 @@ mkdir -p "$TEMP_DIR/usr/lib/systemd/user"
 
 # 4. Copy Binaries and Assets
 echo "-> Copying binaries and configuration assets..."
-cp "$WORKSPACE_DIR/keyra-daemon/target/release/keyra-daemon" "$TEMP_DIR/usr/bin/keyra-daemon"
-cp -r "$WORKSPACE_DIR/keyra-flutter/build/linux/x64/release/bundle/"* "$TEMP_DIR/opt/keyra/"
+cp "$DAEMON_BIN" "$TEMP_DIR/usr/bin/keyra-daemon"
+cp -r "$FLUTTER_BUNDLE/"* "$TEMP_DIR/opt/keyra/"
 cp "$PACKAGING_DIR/keyra.desktop" "$TEMP_DIR/usr/share/applications/keyra.desktop"
 cp "$PACKAGING_DIR/keyra.service" "$TEMP_DIR/usr/lib/systemd/user/keyra.service"
-cp "$WORKSPACE_DIR/keyra-flutter/assets/icons/tray_icon.png" "$TEMP_DIR/usr/share/pixmaps/keyra.png"
+
+# Copy icon — try multiple locations
+if [ -f "$WORKSPACE_DIR/keyra-flutter/assets/icons/tray_icon.png" ]; then
+    cp "$WORKSPACE_DIR/keyra-flutter/assets/icons/tray_icon.png" "$TEMP_DIR/usr/share/pixmaps/keyra.png"
+elif [ -f "$WORKSPACE_DIR/app_logo.png" ]; then
+    cp "$WORKSPACE_DIR/app_logo.png" "$TEMP_DIR/usr/share/pixmaps/keyra.png"
+fi
 
 # Create symlink for the UI
 ln -sf "/opt/keyra/keyra_app" "$TEMP_DIR/usr/bin/keyra-ui"
 
+# Get version from environment tag (GITHUB_REF_NAME) or fallback to v0.1.0
+RAW_VERSION="${GITHUB_REF_NAME:-v0.1.0}"
+# Remove 'v' prefix if present
+VERSION="${RAW_VERSION#v}"
+
 # Create DEBIAN/control file
 cat <<EOF > "$TEMP_DIR/DEBIAN/control"
 Package: keyra
-Version: 0.1.0
+Version: $VERSION
 Section: utils
 Priority: optional
 Architecture: amd64
@@ -56,10 +77,14 @@ Description: Premium low-latency typing sound engine and UI
 EOF
 
 # 5. Build Debian Package
-echo "-> Generating .deb package..."
-dpkg-deb --build "$TEMP_DIR" "$PACKAGING_DIR/keyra_0.1.0_amd64.deb"
-
-# Clean up
-rm -rf "$TEMP_DIR"
-
-echo "=== Build Complete! Package created at packaging/keyra_0.1.0_amd64.deb ==="
+if ! command -v dpkg-deb &> /dev/null; then
+    echo -e "\n⚠️  Aviso: 'dpkg-deb' não foi encontrado no seu sistema."
+    echo "O empacotamento Debian (.deb) foi ignorado localmente."
+    echo "Limpando arquivos temporários..."
+    rm -rf "$TEMP_DIR"
+else
+    echo "-> Generating .deb package..."
+    dpkg-deb --build "$TEMP_DIR" "$PACKAGING_DIR/keyra_${VERSION}_amd64.deb"
+    rm -rf "$TEMP_DIR"
+    echo "=== Build Complete! Package created at packaging/keyra_${VERSION}_amd64.deb ==="
+fi

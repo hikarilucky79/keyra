@@ -28,3 +28,15 @@ keyra-flutter/windows/flutter/ephemeral/
 .DS_Store
 Thumbs.db
 *.log
+
+# Packaging build artifacts
+packaging/*.AppImage
+packaging/*.deb
+packaging/appimagetool
+packaging/AppDir/
+packaging/deb_build_temp/
+packaging/releases/
+packaging/windows_stub/
+
+# Session / generated files
+session-*.md

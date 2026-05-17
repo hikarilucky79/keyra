@@ -1,0 +1,628 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  
+  <!-- SEO Meta Tags -->
+  <title>Keyra - Premium Keyboard Audio Feedback & Visualizer</title>
+  <meta name="description" content="Experimente o Keyra: um gerador de som de digitação com baixíssima latência (Rust) e visualizador de teclado mecânico virtual premium (Flutter) com design inspirado no macOS." />
+  <meta name="keywords" content="keyra, teclado mecanico, mechvibes, som de teclado, rust, flutter, glassmorphism, visualizador de teclado, baixa latencia" />
+  
+  <!-- OpenGraph Social Tags -->
+  <meta property="og:title" content="Keyra - Mechanical Keyboard Sound Generator & Visualizer" />
+  <meta property="og:description" content="Personalize sua experiência de digitação com som mecânico premium em tempo real e visualizador interativo em alta definição." />
+  <meta property="og:image" content="keyra_preview.png" />
+  <meta property="og:type" content="website" />
+  
+  <!-- Favicons Configuration -->
+  <link rel="shortcut icon" href="favicon.ico" type="image/x-icon" />
+  <link rel="icon" href="favicon.png" type="image/png" sizes="512x512" />
+  <link rel="icon" type="image/png" sizes="16x16" href="favicon-16x16.png" />
+  <link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png" />
+  <link rel="apple-touch-icon" href="apple-touch-icon.png" />
+  <link rel="manifest" href="site.webmanifest" />
+
+  <!-- Premium Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+
+  <style>
+    :root {
+      --bg-dark: #090a0f;
+      --bg-card: rgba(18, 19, 29, 0.6);
+      --border-color: rgba(255, 255, 255, 0.08);
+      --text-main: #f3f4f6;
+      --text-muted: #9ca3af;
+      --accent-purple: #7c4dff;
+      --accent-purple-glow: rgba(124, 77, 255, 0.15);
+      --accent-blue: #00e5ff;
+      --font-sans: 'Outfit', sans-serif;
+      --font-mono: 'JetBrains Mono', monospace;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg-dark);
+      color: var(--text-main);
+      font-family: var(--font-sans);
+      overflow-x: hidden;
+      line-height: 1.6;
+      background-image: 
+        radial-gradient(circle at 10% 20%, rgba(124, 77, 255, 0.12) 0%, transparent 40%),
+        radial-gradient(circle at 90% 80%, rgba(0, 229, 255, 0.08) 0%, transparent 40%);
+      background-attachment: fixed;
+    }
+
+    /* Container */
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 0 24px;
+    }
+
+    /* Header */
+    header {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      z-index: 100;
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border-bottom: 1px solid var(--border-color);
+      background-color: rgba(9, 10, 15, 0.7);
+      transition: all 0.3s ease;
+    }
+
+    .header-nav {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      height: 72px;
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      text-decoration: none;
+      font-weight: 700;
+      font-size: 24px;
+      color: var(--text-main);
+      letter-spacing: -0.5px;
+    }
+
+    .logo img {
+      width: 36px;
+      height: 36px;
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(124, 77, 255, 0.3);
+    }
+
+    .logo span {
+      background: linear-gradient(135deg, #fff 0%, #a5b4fc 100%);
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .nav-links {
+      display: flex;
+      gap: 32px;
+      list-style: none;
+    }
+
+    .nav-links a {
+      text-decoration: none;
+      color: var(--text-muted);
+      font-size: 15px;
+      font-weight: 500;
+      transition: color 0.2s ease;
+    }
+
+    .nav-links a:hover {
+      color: var(--text-main);
+    }
+
+    .nav-btn {
+      background: linear-gradient(135deg, var(--accent-purple) 0%, #651fff 100%);
+      color: #fff !important;
+      padding: 8px 20px;
+      border-radius: 20px;
+      font-size: 14px;
+      font-weight: 600;
+      box-shadow: 0 4px 14px rgba(124, 77, 255, 0.4);
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .nav-btn:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 6px 20px rgba(124, 77, 255, 0.6);
+    }
+
+    /* Hero Section */
+    .hero {
+      padding: 160px 0 100px 0;
+      text-align: center;
+      position: relative;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(124, 77, 255, 0.1);
+      border: 1px solid rgba(124, 77, 255, 0.2);
+      color: #a5b4fc;
+      padding: 6px 16px;
+      border-radius: 30px;
+      font-size: 14px;
+      font-weight: 600;
+      margin-bottom: 24px;
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0% { box-shadow: 0 0 0 0 rgba(124, 77, 255, 0.4); }
+      70% { box-shadow: 0 0 0 8px rgba(124, 77, 255, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(124, 77, 255, 0); }
+    }
+
+    .hero-title {
+      font-size: 64px;
+      font-weight: 800;
+      line-height: 1.15;
+      letter-spacing: -2px;
+      margin-bottom: 24px;
+      background: linear-gradient(to right, #ffffff 30%, #c7d2fe 70%, #818cf8 100%);
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .hero-subtitle {
+      font-size: 20px;
+      color: var(--text-muted);
+      max-width: 680px;
+      margin: 0 auto 40px auto;
+      font-weight: 400;
+    }
+
+    .hero-ctas {
+      display: flex;
+      justify-content: center;
+      gap: 20px;
+      flex-wrap: wrap;
+      margin-bottom: 60px;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 14px 28px;
+      border-radius: 30px;
+      font-size: 16px;
+      font-weight: 600;
+      text-decoration: none;
+      transition: all 0.25s ease;
+      cursor: pointer;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, var(--accent-purple) 0%, #651fff 100%);
+      color: #fff;
+      box-shadow: 0 8px 24px rgba(124, 77, 255, 0.4);
+    }
+
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 12px 30px rgba(124, 77, 255, 0.6);
+    }
+
+    .btn-secondary {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--border-color);
+      color: var(--text-main);
+      backdrop-filter: blur(10px);
+    }
+
+    .btn-secondary:hover {
+      background: rgba(255, 255, 255, 0.1);
+      transform: translateY(-2px);
+      border-color: rgba(255, 255, 255, 0.2);
+    }
+
+    /* App Preview Container */
+    .preview-container {
+      position: relative;
+      max-width: 950px;
+      margin: 0 auto;
+      border-radius: 16px;
+      padding: 8px;
+      background: linear-gradient(135deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.02) 100%);
+      border: 1px solid var(--border-color);
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+    }
+
+    .preview-img {
+      width: 100%;
+      height: auto;
+      border-radius: 12px;
+      display: block;
+    }
+
+    /* Features Section */
+    .features {
+      padding: 100px 0;
+      position: relative;
+    }
+
+    .section-header {
+      text-align: center;
+      margin-bottom: 60px;
+    }
+
+    .section-title {
+      font-size: 38px;
+      font-weight: 700;
+      letter-spacing: -1px;
+      margin-bottom: 16px;
+    }
+
+    .section-subtitle {
+      color: var(--text-muted);
+      font-size: 17px;
+      max-width: 500px;
+      margin: 0 auto;
+    }
+
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 30px;
+    }
+
+    .feature-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 16px;
+      padding: 40px 32px;
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      transition: all 0.3s ease;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .feature-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 4px;
+      background: linear-gradient(90deg, var(--accent-purple), var(--accent-blue));
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    }
+
+    .feature-card:hover {
+      transform: translateY(-5px);
+      border-color: rgba(255, 255, 255, 0.15);
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+    }
+
+    .feature-card:hover::before {
+      opacity: 1;
+    }
+
+    .feature-icon {
+      width: 52px;
+      height: 52px;
+      border-radius: 12px;
+      background: rgba(124, 77, 255, 0.1);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+      margin-bottom: 24px;
+      color: #a5b4fc;
+      border: 1px solid rgba(124, 77, 255, 0.2);
+    }
+
+    .feature-card h3 {
+      font-size: 20px;
+      font-weight: 600;
+      margin-bottom: 12px;
+    }
+
+    .feature-card p {
+      color: var(--text-muted);
+      font-size: 15px;
+      line-height: 1.6;
+    }
+
+    /* Architecture / Code Showcase */
+    .arch {
+      padding: 80px 0;
+      background: rgba(10, 11, 19, 0.5);
+      border-top: 1px solid var(--border-color);
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .arch-content {
+      display: flex;
+      align-items: center;
+      gap: 60px;
+      flex-wrap: wrap;
+    }
+
+    .arch-text {
+      flex: 1;
+      min-width: 320px;
+    }
+
+    .arch-text h2 {
+      font-size: 38px;
+      font-weight: 700;
+      margin-bottom: 20px;
+      letter-spacing: -1px;
+    }
+
+    .arch-text p {
+      color: var(--text-muted);
+      font-size: 16px;
+      margin-bottom: 24px;
+    }
+
+    .arch-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .arch-list li {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      font-size: 15px;
+    }
+
+    .arch-list li::before {
+      content: '✓';
+      color: var(--accent-blue);
+      font-weight: bold;
+    }
+
+    .arch-code {
+      flex: 1;
+      min-width: 320px;
+      background: #06070a;
+      border-radius: 12px;
+      border: 1px solid var(--border-color);
+      font-family: var(--font-mono);
+      font-size: 13px;
+      line-height: 1.5;
+      padding: 24px;
+      box-shadow: 0 15px 30px rgba(0, 0, 0, 0.4);
+      color: #a5b4fc;
+      overflow-x: auto;
+    }
+
+    .code-comment { color: #5c6370; font-style: italic; }
+    .code-keyword { color: #c678dd; }
+    .code-string { color: #98c379; }
+    .code-number { color: #d19a66; }
+    .code-def { color: #61afef; }
+
+    /* Footer */
+    footer {
+      padding: 60px 0 40px 0;
+      border-top: 1px solid var(--border-color);
+      color: var(--text-muted);
+      font-size: 14px;
+    }
+
+    .footer-content {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 24px;
+    }
+
+    .footer-info {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .footer-info img {
+      width: 24px;
+      height: 24px;
+      border-radius: 4px;
+      opacity: 0.8;
+    }
+
+    .footer-links {
+      display: flex;
+      gap: 24px;
+      list-style: none;
+    }
+
+    .footer-links a {
+      color: var(--text-muted);
+      text-decoration: none;
+      transition: color 0.2s ease;
+    }
+
+    .footer-links a:hover {
+      color: var(--text-main);
+    }
+
+    /* Responsive adjustments */
+    @media (max-width: 768px) {
+      .hero-title {
+        font-size: 44px;
+        letter-spacing: -1px;
+      }
+      .hero-subtitle {
+        font-size: 17px;
+      }
+      .section-title {
+        font-size: 30px;
+      }
+      .header-nav {
+        flex-direction: column;
+        height: auto;
+        padding: 16px 0;
+        gap: 12px;
+      }
+      .nav-links {
+        gap: 16px;
+      }
+      .hero {
+        padding-top: 180px;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Premium Header -->
+  <header>
+    <div class="container header-nav">
+      <a href="#" class="logo">
+        <img id="header-logo-img" src="favicon.png" alt="Keyra Logo" onerror="this.src='favicon-32x32.png'" />
+        <span>Keyra</span>
+      </a>
+      <ul class="nav-links">
+        <li><a href="#features">Recursos</a></li>
+        <li><a href="#architecture">Arquitetura</a></li>
+        <li><a href="#download" class="nav-btn">Download</a></li>
+      </ul>
+    </div>
+  </header>
+
+  <!-- Hero Section -->
+  <section class="hero" id="home">
+    <div class="container">
+      <div class="badge">
+        <span>✨ Lançamento Oficial v0.1.0</span>
+      </div>
+      <h1 class="hero-title">Sinta e Ouça Cada Tecla</h1>
+      <p class="hero-subtitle">
+        Uma experiência acústica e visual premium de digitação de baixíssima latência para Linux e Windows. Eleve sua digitação diária a um patvel de imersão mecânica inigualável.
+      </p>
+      
+      <div class="hero-ctas" id="download">
+        <a href="https://github.com/hikarilucky79/keyra/releases" target="_blank" class="btn btn-primary">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+          Baixar Pacotes de Release (GitHub)
+        </a>
+        <a href="#features" class="btn btn-secondary">Conhecer Recursos</a>
+      </div>
+
+      <!-- Mockup Showcase -->
+      <div class="preview-container">
+        <img src="keyra_preview.png" alt="Keyra Premium Application Preview" class="preview-img" onerror="this.style.display='none'; console.log('Run script or release to generate preview')" />
+      </div>
+    </div>
+  </section>
+
+  <!-- Features Grid -->
+  <section class="features" id="features">
+    <div class="container">
+      <div class="section-header">
+        <h2 class="section-title">Construído para Entusiastas</h2>
+        <p class="section-subtitle">Combinando robustez do Rust com beleza fluida do Flutter.</p>
+      </div>
+
+      <div class="features-grid">
+        <!-- Feature 1 -->
+        <div class="feature-card">
+          <div class="feature-icon">🦀</div>
+          <h3>Baixíssima Latência</h3>
+          <p>
+            O daemon em Rust conecta-se diretamente aos eventos de hardware no Linux (evdev) e Windows Hooks, garantindo áudio instantâneo com zero lag.
+          </p>
+        </div>
+
+        <!-- Feature 2 -->
+        <div class="feature-card">
+          <div class="feature-icon">🎨</div>
+          <h3>Aparência Premium macOS</h3>
+          <p>
+            Interface elegante criada em Flutter contendo efeitos translúcidos de glassmorphism, suporte completo a temas, animações dinâmicas e design responsivo.
+          </p>
+        </div>
+
+        <!-- Feature 3 -->
+        <div class="feature-card">
+          <div class="feature-icon">🔊</div>
+          <h3>Sound Packs Mechvibes</h3>
+          <p>
+            Totalmente compatível com pacotes de som JSON (padrão Mechvibes). Gerencie, instale e customize packs de som Cherry MX, Topre, Oreo e muito mais!
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Architecture / Technical Section -->
+  <section class="arch" id="architecture">
+    <div class="container">
+      <div class="arch-content">
+        <div class="arch-text">
+          <h2>Arquitetura Híbrida de Alta Performance</h2>
+          <p>
+            O Keyra separa a interface da execução crítica. O daemon opera em segundo plano em Rust puro, consumindo menos de 10MB de RAM e mantendo latência inferior a 1ms, enquanto a UI interage via IPC seguro de forma assíncrona.
+          </p>
+          <ul class="arch-list">
+            <li><strong>Rust Daemon:</strong> Monitoramento estável de keystrokes a nível do sistema operacional.</li>
+            <li><strong>Comunicação IPC:</strong> Sockets de domínio Unix (Linux) e Named Pipes (Windows).</li>
+            <li><strong>Teclado Virtual 60%:</strong> Visualizador interativo de teclas físicas no Flutter com efeito shockwave.</li>
+          </ul>
+        </div>
+
+        <div class="arch-code">
+          <span class="code-comment">// Keyra daemon configuration (packs/cherrymx/config.json)</span><br/>
+          {<br/>
+          &nbsp;&nbsp;<span class="code-keyword">"name"</span>: <span class="code-string">"Cherry MX Blue ABS"</span>,<br/>
+          &nbsp;&nbsp;<span class="code-keyword">"id"</span>: <span class="code-string">"cherrymx-blue-abs"</span>,<br/>
+          &nbsp;&nbsp;<span class="code-keyword">"defines"</span>: {<br/>
+          &nbsp;&nbsp;&nbsp;&nbsp;<span class="code-keyword">"1"</span>: <span class="code-string">"sound.ogg"</span>, <span class="code-comment">// Esc keycode</span><br/>
+          &nbsp;&nbsp;&nbsp;&nbsp;<span class="code-keyword">"57"</span>: <span class="code-string">"spacebar.ogg"</span>, <span class="code-comment">// Space keycode</span><br/>
+          &nbsp;&nbsp;&nbsp;&nbsp;<span class="code-keyword">"28"</span>: <span class="code-string">"enter.ogg"</span> <span class="code-comment">// Enter keycode</span><br/>
+          &nbsp;&nbsp;}<br/>
+          }
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Premium Footer -->
+  <footer>
+    <div class="container footer-content">
+      <div class="footer-info">
+        <img src="favicon-32x32.png" alt="Keyra Small Logo" />
+        <span>&copy; 2026 Keyra. Licenciado sob MIT.</span>
+      </div>
+      <ul class="footer-links">
+        <li><a href="https://github.com/hikarilucky79/keyra" target="_blank">Código Fonte (GitHub)</a></li>
+        <li><a href="#home">Voltar ao topo</a></li>
+      </ul>
+    </div>
+  </footer>
+
+</body>
+</html>
