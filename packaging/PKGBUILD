@@ -1,0 +1,51 @@
+pkgname=keyra-git
+pkgver=0.1.0
+pkgrel=1
+pkgdesc="Premium low-latency typing sound engine and UI"
+arch=('x86_64')
+url="https://github.com/hikari/keyra" # Atualize com a URL real do projeto futuramente
+license=('GPL3')
+depends=('gtk3' 'alsa-lib' 'glibc' 'gcc-libs')
+makedepends=('rust' 'cargo' 'flutter')
+provides=('keyra')
+conflicts=('keyra')
+# Como o projeto ainda não está no git, o PKGBUILD assume que estamos usando ele localmente.
+# Quando for publicado, use: source=("git+https://github.com/hikari/keyra.git")
+source=("local-build-placeholder::file://${PWD}/..")
+md5sums=('SKIP')
+
+build() {
+  cd "$srcdir/local-build-placeholder/keyra-daemon"
+  export CARGO_HOME="$srcdir/cargo-home"
+  cargo build --release
+
+  cd "$srcdir/local-build-placeholder/keyra-flutter"
+  flutter build linux --release
+}
+
+package() {
+  cd "$srcdir/local-build-placeholder"
+
+  # 1. Instalar o Daemon
+  install -Dm755 "keyra-daemon/target/release/keyra-daemon" "$pkgdir/usr/bin/keyra-daemon"
+
+  # 2. Instalar a UI (Flutter bundle) no /opt/keyra
+  mkdir -p "$pkgdir/opt/keyra"
+  cp -r "keyra-flutter/build/linux/x64/release/bundle/"* "$pkgdir/opt/keyra/"
+  
+  # Dar permissão de execução ao binário do Flutter
+  chmod +x "$pkgdir/opt/keyra/keyra_app"
+
+  # Criar link simbólico para a UI no /usr/bin
+  mkdir -p "$pkgdir/usr/bin"
+  ln -s "/opt/keyra/keyra_app" "$pkgdir/usr/bin/keyra-ui"
+
+  # 3. Instalar o arquivo .desktop para aparecer no menu de aplicativos
+  install -Dm644 "packaging/keyra.desktop" "$pkgdir/usr/share/applications/keyra.desktop"
+
+  # 4. Instalar o serviço systemd do usuário
+  install -Dm644 "packaging/keyra.service" "$pkgdir/usr/lib/systemd/user/keyra.service"
+
+  # 5. Instalar o ícone do aplicativo
+  install -Dm644 "keyra-flutter/assets/icons/tray_icon.png" "$pkgdir/usr/share/pixmaps/keyra.png"
+}

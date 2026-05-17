@@ -1,0 +1,6 @@
+{
+  "volume": 0.7,
+  "pack": "default",
+  "enabled": false,
+  "latency_target_ms": 10
+}

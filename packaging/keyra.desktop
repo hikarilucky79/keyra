@@ -1,0 +1,10 @@
+[Desktop Entry]
+Name=Keyra
+Comment=Premium Keyboard Audio Feedback Configuration
+Exec=keyra
+Icon=keyra
+Terminal=false
+Type=Application
+Categories=Utility;Settings;Audio;
+Keywords=keyboard;audio;sound;typing;
+StartupNotify=true

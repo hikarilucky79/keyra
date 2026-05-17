@@ -1,0 +1,30 @@
+# Rust / Cargo
+target/
+keyra-daemon/target/
+**/*.rs.bk
+.rustup_tmp/
+
+# Flutter / Dart
+keyra-flutter/.dart_tool/
+keyra-flutter/.packages
+keyra-flutter/.pub-cache/
+keyra-flutter/.pub/
+keyra-flutter/build/
+keyra-flutter/.flutter-plugins
+keyra-flutter/.flutter-plugins-dependencies
+keyra-flutter/linux/flutter/ephemeral/
+keyra-flutter/windows/flutter/ephemeral/
+
+# IDE / Editor configuration
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# OS / Temporary files
+.DS_Store
+Thumbs.db
+*.log
