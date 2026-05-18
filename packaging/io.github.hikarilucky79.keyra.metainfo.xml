@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>io.github.hikarilucky79.keyra</id>
+  
+  <name>Keyra</name>
+  <summary>Premium low-latency typing sound engine &amp; real-time keyboard visualizer</summary>
+  
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>MIT</project_license>
+  
+  <developer id="io.github.hikarilucky79">
+    <name>Hikari</name>
+  </developer>
+  
+  <description>
+    <p>
+      Keyra is a premium, state-of-the-art desktop application that generates high-fidelity, ultra-low-latency mechanical keyboard typing sounds in real-time. Designed to enhance the typing experience, it brings a rich, responsive auditory feedback loop to any standard keyboard.
+    </p>
+    <p>
+      Keyra features a beautiful macOS-inspired user interface with refined glassmorphism, animated screen transitions, and a highly interactive, real-time keyboard visualizer showing physical key triggers.
+    </p>
+    <p>Features include:</p>
+    <ul>
+      <li>Ultra-low latency audio mixing engine developed in Rust</li>
+      <li>Highly detailed real-time mechanical keyboard visualizer (60% layout)</li>
+      <li>Modular Sound Pack loading with automatic system configurations</li>
+      <li>System tray management and autostart capabilities</li>
+      <li>Minimalist, premium macOS-style user interface built with Flutter</li>
+    </ul>
+  </description>
+  
+  <launchable type="desktop-id">io.github.hikarilucky79.keyra.desktop</launchable>
+  
+  <screenshots>
+    <screenshot type="default">
+      <caption>Real-time Mechanical Keyboard Visualizer and Dashboard</caption>
+      <image>https://raw.githubusercontent.com/hikarilucky79/keyra/main/public/keyra_preview.png</image>
+    </screenshot>
+  </screenshots>
+  
+  <url type="homepage">https://github.com/hikarilucky79/keyra</url>
+  <url type="bugtracker">https://github.com/hikarilucky79/keyra/issues</url>
+  <url type="help">https://github.com/hikarilucky79/keyra#readme</url>
+  
+  <releases>
+    <release version="0.1.0" date="2026-05-17">
+      <description>
+        <p>Initial release of Keyra: Premium Mechanical Keyboard Sound Engine!</p>
+        <ul>
+          <li>High-performance Rust-based audio daemon</li>
+          <li>Elegant Flutter glassmorphic frontend</li>
+          <li>System tray control and seamless autostart integration</li>
+        </ul>
+      </description>
+    </release>
+  </releases>
+  
+  <content_rating type="oars-1.1" />
+  
+  <provides>
+    <binary>keyra_app</binary>
+    <binary>keyra-daemon</binary>
+  </provides>
+</component>

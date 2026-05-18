@@ -48,26 +48,25 @@ mkdir -p "$APPDIR/usr/share/metainfo"
 echo "-> Copying binaries and configuration assets..."
 cp "$DAEMON_BIN" "$APPDIR/usr/bin/keyra-daemon"
 cp -r "$FLUTTER_BUNDLE/"* "$APPDIR/usr/bin/"
+mv "$APPDIR/usr/bin/keyra_app" "$APPDIR/usr/bin/keyra"
 
-# Copy icon — try multiple locations (prioritizing high-resolution main logo)
-if [ -f "$WORKSPACE_DIR/app_logo.png" ]; then
-    cp "$WORKSPACE_DIR/app_logo.png" "$APPDIR/keyra.png"
-elif [ -f "$WORKSPACE_DIR/keyra-flutter/assets/icons/app_icon.png" ]; then
-    cp "$WORKSPACE_DIR/keyra-flutter/assets/icons/app_icon.png" "$APPDIR/keyra.png"
-elif [ -f "$WORKSPACE_DIR/keyra-flutter/assets/icons/tray_icon.png" ]; then
-    cp "$WORKSPACE_DIR/keyra-flutter/assets/icons/tray_icon.png" "$APPDIR/keyra.png"
+# Copy icon — try multiple locations
+if [ -f "$WORKSPACE_DIR/keyra-flutter/assets/icons/tray_icon.png" ]; then
+    cp "$WORKSPACE_DIR/keyra-flutter/assets/icons/tray_icon.png" "$APPDIR/io.github.hikarilucky79.keyra.png"
+elif [ -f "$WORKSPACE_DIR/app_logo.png" ]; then
+    cp "$WORKSPACE_DIR/app_logo.png" "$APPDIR/io.github.hikarilucky79.keyra.png"
 else
     echo "Warning: No icon file found, using placeholder."
-    printf '\x89PNG\r\n\x1a\n' > "$APPDIR/keyra.png"
+    printf '\x89PNG\r\n\x1a\n' > "$APPDIR/io.github.hikarilucky79.keyra.png"
 fi
 
 # Write desktop entry file into AppDir root (required by AppImage)
-cat <<EOF > "$APPDIR/keyra.desktop"
+cat <<EOF > "$APPDIR/io.github.hikarilucky79.keyra.desktop"
 [Desktop Entry]
 Name=Keyra
 Comment=Premium Keyboard Audio Feedback Configuration
 Exec=keyra_app %U
-Icon=keyra
+Icon=io.github.hikarilucky79.keyra
 Terminal=false
 Type=Application
 Categories=Utility;Settings;Audio;
@@ -81,13 +80,17 @@ cat <<'EOF' > "$APPDIR/AppRun"
 #!/bin/sh
 HERE="$(dirname "$(readlink -f "${0}")")"
 
+# Ensure dynamic linker finds the bundled shared libraries
+export LD_LIBRARY_PATH="$HERE/usr/bin/lib:$LD_LIBRARY_PATH"
+
 # Start the daemon in the background if not already running
 if ! pgrep -x "keyra-daemon" > /dev/null; then
     "$HERE/usr/bin/keyra-daemon" &
 fi
 
-# Run the Flutter UI
-exec "$HERE/usr/bin/keyra_app" "$@"
+# Change working directory to the binary location so relative assets (data/ and lib/) resolve correctly
+cd "$HERE/usr/bin"
+exec ./keyra "$@"
 EOF
 chmod +x "$APPDIR/AppRun"
 
@@ -112,6 +115,7 @@ chmod +x appimagetool
 
 echo "-> Generating Keyra-x86_64.AppImage..."
 export ARCH=x86_64
+export APPIMAGE_EXTRACT_AND_RUN=1
 ./appimagetool "$APPDIR" "$PACKAGING_DIR/Keyra-x86_64.AppImage"
 
 # Clean up

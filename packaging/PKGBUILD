@@ -6,46 +6,55 @@ arch=('x86_64')
 url="https://github.com/hikari/keyra" # Atualize com a URL real do projeto futuramente
 license=('GPL3')
 depends=('gtk3' 'alsa-lib' 'glibc' 'gcc-libs')
-makedepends=('rust' 'cargo' 'flutter')
+makedepends=('rust' 'cargo')
 provides=('keyra')
 conflicts=('keyra')
-# Como o projeto ainda não está no git, o PKGBUILD assume que estamos usando ele localmente.
-# Quando for publicado, use: source=("git+https://github.com/hikari/keyra.git")
-source=("local-build-placeholder::file://${PWD}/..")
-md5sums=('SKIP')
+# Para compilação e empacotamento local, o PKGBUILD acessa a pasta do workspace diretamente.
+# Quando for publicado no AUR, use: source=("git+https://github.com/hikari/keyra.git")
+source=()
+md5sums=()
 
 build() {
-  cd "$srcdir/local-build-placeholder/keyra-daemon"
+  cd "$startdir/../keyra-daemon"
   export CARGO_HOME="$srcdir/cargo-home"
+
+  # Limpar flags do makepkg que interferem no compilador de dependências C do Rust (como zstd-sys)
+  unset CFLAGS
+  unset CXXFLAGS
+  unset LDFLAGS
+  unset RUSTFLAGS
+
   cargo build --release
 
-  cd "$srcdir/local-build-placeholder/keyra-flutter"
+  cd "$startdir/../keyra-flutter"
+  unset CFLAGS
+  unset CXXFLAGS
+  unset LDFLAGS
+  unset RUSTFLAGS
   flutter build linux --release
 }
 
 package() {
-  cd "$srcdir/local-build-placeholder"
-
   # 1. Instalar o Daemon
-  install -Dm755 "keyra-daemon/target/release/keyra-daemon" "$pkgdir/usr/bin/keyra-daemon"
+  install -Dm755 "$startdir/../keyra-daemon/target/release/keyra-daemon" "$pkgdir/usr/bin/keyra-daemon"
 
   # 2. Instalar a UI (Flutter bundle) no /opt/keyra
   mkdir -p "$pkgdir/opt/keyra"
-  cp -r "keyra-flutter/build/linux/x64/release/bundle/"* "$pkgdir/opt/keyra/"
+  cp -r "$startdir/../keyra-flutter/build/linux/x64/release/bundle/"* "$pkgdir/opt/keyra/"
   
   # Dar permissão de execução ao binário do Flutter
   chmod +x "$pkgdir/opt/keyra/keyra_app"
 
   # Criar link simbólico para a UI no /usr/bin
   mkdir -p "$pkgdir/usr/bin"
-  ln -s "/opt/keyra/keyra_app" "$pkgdir/usr/bin/keyra-ui"
+  ln -sf "/opt/keyra/keyra_app" "$pkgdir/usr/bin/keyra"
 
   # 3. Instalar o arquivo .desktop para aparecer no menu de aplicativos
-  install -Dm644 "packaging/keyra.desktop" "$pkgdir/usr/share/applications/keyra.desktop"
+  install -Dm644 "$startdir/io.github.hikarilucky79.keyra.desktop" "$pkgdir/usr/share/applications/io.github.hikarilucky79.keyra.desktop"
 
   # 4. Instalar o serviço systemd do usuário
-  install -Dm644 "packaging/keyra.service" "$pkgdir/usr/lib/systemd/user/keyra.service"
+  install -Dm644 "$startdir/keyra.service" "$pkgdir/usr/lib/systemd/user/keyra.service"
 
   # 5. Instalar o ícone do aplicativo
-  install -Dm644 "keyra-flutter/assets/icons/tray_icon.png" "$pkgdir/usr/share/pixmaps/keyra.png"
+  install -Dm644 "$startdir/../keyra-flutter/assets/icons/tray_icon.png" "$pkgdir/usr/share/pixmaps/io.github.hikarilucky79.keyra.png"
 }

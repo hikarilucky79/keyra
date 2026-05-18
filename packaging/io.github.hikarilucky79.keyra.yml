@@ -1,0 +1,73 @@
+app-id: io.github.hikarilucky79.keyra
+runtime: org.gnome.Platform
+runtime-version: '46'
+sdk: org.gnome.Sdk
+sdk-extensions:
+  - org.freedesktop.Sdk.Extension.rust-stable
+
+command: keyra-launcher
+
+finish-args:
+  # Graphical socket access (X11 & Wayland)
+  - --socket=x11
+  - --socket=wayland
+  - --share=ipc
+  
+  # Sound output
+  - --socket=pulseaudio
+  
+  # System-wide input event monitoring (/dev/input/event* for typing sound generation)
+  - --device=all
+  
+  # Notifications
+  - --talk-name=org.freedesktop.Notifications
+  
+  # IPC communication for tray and desktop integration
+  - --own-name=org.keyra.app
+
+build-options:
+  append-path: /usr/lib/sdk/rust-stable/bin
+  env:
+    CARGO_HOME: /run/build/keyra/cargo
+
+modules:
+  - name: keyra
+    buildsystem: simple
+    build-commands:
+      # 1. Compile the Rust keyra-daemon from source
+      - cargo build --release --manifest-path keyra-daemon/Cargo.toml
+      - install -Dm0755 target/release/keyra-daemon -t /app/bin/
+
+      # 2. Package the Flutter front-end bundle (assumes flutter build linux has run)
+      - install -Dm0755 keyra-flutter/build/linux/x64/release/bundle/keyra_app -t /app/bin/
+      - cp -r keyra-flutter/build/linux/x64/release/bundle/data /app/bin/
+      - cp -r keyra-flutter/build/linux/x64/release/bundle/lib /app/bin/
+
+      # 3. Install integration desktop shortcut and AppStream metadata
+      - install -Dm0644 packaging/io.github.hikarilucky79.keyra.desktop -t /app/share/applications/
+      - install -Dm0644 packaging/io.github.hikarilucky79.keyra.metainfo.xml -t /app/share/metainfo/
+      
+      # 4. Install high-resolution application icon
+      - install -Dm0644 app_logo.png /app/share/icons/hicolor/256x256/apps/io.github.hikarilucky79.keyra.png
+
+      # 5. Create launcher entry point script
+      - |
+        cat << 'EOF' > /app/bin/keyra-launcher
+        #!/bin/sh
+        # Ensure plugins find bundled shared libraries
+        export LD_LIBRARY_PATH="/app/bin/lib:$LD_LIBRARY_PATH"
+
+        # Start keyra-daemon in the background if not already active
+        if ! pgrep -x "keyra-daemon" > /dev/null; then
+            /app/bin/keyra-daemon &
+        fi
+
+        # Change directory to where assets and AOT data resides, and execute
+        cd /app/bin
+        exec ./keyra_app "$@"
+        EOF
+      - chmod +x /app/bin/keyra-launcher
+
+    sources:
+      - type: dir
+        path: ..

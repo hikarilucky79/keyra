@@ -1,0 +1,112 @@
+app-id: io.github.hikarilucky79.keyra
+runtime: org.gnome.Platform
+runtime-version: '49'
+sdk: org.gnome.Sdk
+sdk-extensions:
+  - org.gnome.Sdk.Extension.flutter
+command: keyra
+
+build-options:
+  append-path:
+    - /usr/lib/sdk/flutter/bin
+  append-ld-library-path:
+    - /app/lib
+
+finish-args:
+  # Display
+  - --socket=x11
+  - --socket=wayland
+  # Audio output
+  - --socket=pulseaudio
+  # Keyboard and input device access (evdev – required for daemon)
+  - --device=all
+  # D-Bus session
+  - --socket=session-bus
+  --env=LD_PRELOAD=/app/lib/libflutter_linux_gtk.so
+  # Desktop portals (file picker etc.)
+  - --talk-name=org.freedesktop.portal.Desktop
+  - --talk-name=org.freedesktop.portal.FileChooser
+  - --talk-name=org.freedesktop.impl.portal.PermissionStore
+  - --talk-name=org.freedesktop.portal.AppChooser
+  # App data dirs (XDG paths)
+  - --filesystem=xdg-config/keyra
+  - --filesystem=xdg-data/keyra
+  # IPC socket runtime directory
+  - --filesystem=xdg-run/keyra
+  # GL / GPU
+  - --share=gl
+  - --device=dri
+  # Clipboard
+  - --share=ipc
+
+# Patterns removed from app installation
+cleanup:
+  - /include
+  - /lib/pkgconfig
+  - /lib/lib*.a
+  - /share/man
+  - /share/doc
+  - /share/gtk-doc
+  - /share/vala
+  - *.a
+  - *.la
+  - /usr/libexec
+  - /usr/bin/*-config
+
+modules:
+  # ─── Keyra Rust Daemon ────────────────────────────────────
+  - name: keyra-daemon
+    buildsystem: cargo
+    build-options:
+      append-path:
+        - /usr/lib/sdk/rust-stable/bin
+      build-args:
+        - --release
+    sources:
+      - type: git
+        url: https://github.com/hikarilucky79/keyra.git
+        tag: v0.1.0
+        disable-shallow-clone: true
+    post-install:
+      - install -Dm0755 target/release/keyra-daemon /app/bin/keyra-daemon
+
+  # ─── Keyra Flutter UI ─────────────────────────────────────
+  - name: keyra-flutter
+    buildsystem: simple
+    build-options:
+      append-path:
+        - /usr/lib/sdk/flutter/bin
+        - /usr/lib/sdk/rust-stable/bin
+    build-commands:
+      - export PATH="$PATH:/usr/lib/sdk/flutter/bin"
+      - export FLUTTER_ROOT=/usr/lib/sdk/flutter
+      - cd keyra-flutter
+      - flutter --version
+      - flutter config --no-analytics
+      - flutter pub get
+      - flutter build linux --release -t lib/main.dart
+      # Binary
+      - install -Dm0755 build/linux/x64/release/bundle/keyra_app /app/bin/keyra
+      # Shared libraries (Flutter engine, GTK plugins)
+      - mkdir -p /app/lib
+      - cp -r build/linux/x64/release/bundle/lib/*.so /app/lib/
+      # Assets (embedded in keyra_app via Flutter build; copy data dir explicitly)
+      - mkdir -p /app/share/keyra
+      - cp -r build/linux/x64/release/bundle/data /app/share/keyra/data
+      # AppStream metadata
+      - mkdir -p /app/share/applications
+      - install -Dm0644 ../packaging/io.github.hikarilucky79.keyra.desktop /app/share/applications/io.github.hikarilucky79.keyra.desktop
+      - mkdir -p /app/share/metainfo
+      - install -Dm0644 ../packaging/io.github.hikarilucky79.keyra.metainfo.xml /app/share/metainfo/io.github.hikarilucky79.keyra.metainfo.xml
+      # Icons
+      - mkdir -p /app/share/icons/hicolor/256x256/apps
+      - install -Dm0644 ../app_logo.png /app/share/icons/hicolor/256x256/apps/io.github.hikarilucky79.keyra.png
+      - mkdir -p /app/share/icons/hicolor/scalable/apps
+      - install -Dm0644 ../public/favicon.svg /app/share/icons/hicolor/scalable/apps/io.github.hikarilucky79.keyra.svg
+      # Lint desktop file
+      - desktop-file-validate /app/share/applications/io.github.hikarilucky79.keyra.desktop
+    sources:
+      - type: git
+        url: https://github.com/hikarilucky79/keyra.git
+        tag: v0.1.0
+        disable-shallow-clone: true

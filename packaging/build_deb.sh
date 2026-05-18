@@ -52,20 +52,20 @@ mkdir -p "$TEMP_DIR/usr/lib/systemd/user"
 echo "-> Copying binaries and configuration assets..."
 cp "$DAEMON_BIN" "$TEMP_DIR/usr/bin/keyra-daemon"
 cp -r "$FLUTTER_BUNDLE/"* "$TEMP_DIR/opt/keyra/"
-cp "$PACKAGING_DIR/keyra.desktop" "$TEMP_DIR/usr/share/applications/keyra.desktop"
+cp "$PACKAGING_DIR/io.github.hikarilucky79.keyra.desktop" "$TEMP_DIR/usr/share/applications/io.github.hikarilucky79.keyra.desktop"
 cp "$PACKAGING_DIR/keyra.service" "$TEMP_DIR/usr/lib/systemd/user/keyra.service"
 
 # Copy icon — try multiple locations (prioritizing high-resolution main logo)
 if [ -f "$WORKSPACE_DIR/app_logo.png" ]; then
-    cp "$WORKSPACE_DIR/app_logo.png" "$TEMP_DIR/usr/share/pixmaps/keyra.png"
+    cp "$WORKSPACE_DIR/app_logo.png" "$TEMP_DIR/usr/share/pixmaps/io.github.hikarilucky79.keyra.png"
 elif [ -f "$WORKSPACE_DIR/keyra-flutter/assets/icons/app_icon.png" ]; then
-    cp "$WORKSPACE_DIR/keyra-flutter/assets/icons/app_icon.png" "$TEMP_DIR/usr/share/pixmaps/keyra.png"
+    cp "$WORKSPACE_DIR/keyra-flutter/assets/icons/app_icon.png" "$TEMP_DIR/usr/share/pixmaps/io.github.hikarilucky79.keyra.png"
 elif [ -f "$WORKSPACE_DIR/keyra-flutter/assets/icons/tray_icon.png" ]; then
-    cp "$WORKSPACE_DIR/keyra-flutter/assets/icons/tray_icon.png" "$TEMP_DIR/usr/share/pixmaps/keyra.png"
+    cp "$WORKSPACE_DIR/keyra-flutter/assets/icons/tray_icon.png" "$TEMP_DIR/usr/share/pixmaps/io.github.hikarilucky79.keyra.png"
 fi
 
 # Create symlink for the UI
-ln -sf "/opt/keyra/keyra_app" "$TEMP_DIR/usr/bin/keyra-ui"
+ln -sf "/opt/keyra/keyra_app" "$TEMP_DIR/usr/bin/keyra"
 
 # Get version from environment tag (GITHUB_REF_NAME) or fallback to v0.1.0
 RAW_VERSION="${GITHUB_REF_NAME:-v0.1.0}"

@@ -24,19 +24,22 @@ echo -e "${MAGENTA}==========================================================${N
 
 echo -e "Escolha o fluxo de trabalho desejado:\n"
 echo -e "  ${BLUE}[1]${NC} 🛠️  Compilar e Empacotar Localmente (Debian & AppImage)"
-echo -e "  ${BLUE}[2]${NC} 🌐 Publicar no GitHub (CI/CD na Nuvem - Recomendado)"
-echo -e "  ${BLUE}[3]${NC} 🚀 Completo: Compilar Localmente + Publicar no GitHub"
-echo -e "  ${BLUE}[4]${NC} ❌ Sair\n"
+echo -e "  ${BLUE}[2]${NC} 📦 Compilar e Instalar Flatpak Localmente (Flathub Manifest)"
+echo -e "  ${BLUE}[3]${NC} 🏹 Compilar Pacote Arch Linux Localmente (PKGBUILD)"
+echo -e "  ${BLUE}[4]${NC} 🖥️  Integrar Atalho no Sistema (Menu de Aplicativos / Pesquisa)"
+echo -e "  ${BLUE}[5]${NC} 🌐 Publicar no GitHub (CI/CD na Nuvem - Recomendado)"
+echo -e "  ${BLUE}[6]${NC} 🚀 Completo: Compilar Localmente + Publicar no GitHub"
+echo -e "  ${BLUE}[7]${NC} ❌ Sair\n"
 
-read -p "Selecione uma opção (1-4): " OPTION
+read -p "Selecione uma opção (1-7): " OPTION
 
-if [ "$OPTION" == "4" ] || [ -z "$OPTION" ]; then
+if [ "$OPTION" == "7" ] || [ -z "$OPTION" ]; then
     echo -e "${YELLOW}Operação cancelada.${NC}"
     exit 0
 fi
 
-# Solicitar a versão da Tag se for interagir com o Git (Opções 2 e 3)
-if [ "$OPTION" == "2" ] || [ "$OPTION" == "3" ]; then
+# Solicitar a versão da Tag se for interagir com o Git (Opções 5 e 6)
+if [ "$OPTION" == "5" ] || [ "$OPTION" == "6" ]; then
     echo ""
     read -p "Digite a tag de versão desejada (ex: v0.1.0) ou Enter para o padrão [v0.1.0]: " TAG_VERSION
     TAG_VERSION=${TAG_VERSION:-v0.1.0}
@@ -85,7 +88,69 @@ executar_build_local() {
         
         # Executa o script mestre de empacotamento Linux
         "$WORKSPACE_DIR/packaging/build_all.sh"
+        
+        echo ""
+        read -p "Deseja integrar o atalho do aplicativo no sistema para que ele apareça na pesquisa? (s/n): " INT_CHOICE
+        if [[ "$INT_CHOICE" =~ ^[Ss]$ ]]; then
+            integrar_atalho_sistema
+        fi
     fi
+}
+
+# ==========================================
+# FUNÇÃO: Integra o atalho do Desktop com a pesquisa do PC
+# ==========================================
+integrar_atalho_sistema() {
+    echo -e "\n${BLUE}=== [Sistema] Integrando Atalho no Menu de Aplicativos ===${NC}"
+    
+    # 1. Verificar se o AppImage existe
+    APPIMAGE_PATH="$WORKSPACE_DIR/packaging/Keyra-x86_64.AppImage"
+    if [ ! -f "$APPIMAGE_PATH" ]; then
+        echo -e "${YELLOW}Aviso: AppImage não encontrado em packaging/Keyra-x86_64.AppImage.${NC}"
+        echo -e "Compilando o AppImage primeiro..."
+        executar_build_local
+    fi
+    
+    # 2. Criar diretórios locais de aplicativos se não existirem
+    mkdir -p "$HOME/.local/bin"
+    mkdir -p "$HOME/.local/share/applications"
+    mkdir -p "$HOME/.local/share/pixmaps"
+    
+    # 3. Copiar o AppImage para um caminho estável em ~/.local/bin/
+    echo "-> Instalando executável estável em ~/.local/bin/keyra"
+    cp "$APPIMAGE_PATH" "$HOME/.local/bin/keyra"
+    chmod +x "$HOME/.local/bin/keyra"
+    
+    # 4. Copiar o Ícone do aplicativo para pixmaps
+    echo "-> Instalando ícones em ~/.local/share/pixmaps/"
+    if [ -f "$WORKSPACE_DIR/app_logo.png" ]; then
+        cp "$WORKSPACE_DIR/app_logo.png" "$HOME/.local/share/pixmaps/io.github.hikarilucky79.keyra.png"
+    else
+        cp "$WORKSPACE_DIR/keyra-flutter/assets/icons/tray_icon.png" "$HOME/.local/share/pixmaps/io.github.hikarilucky79.keyra.png"
+    fi
+    
+    # 5. Criar arquivo de Desktop em ~/.local/share/applications/
+    echo "-> Gerando atalho de desktop em ~/.local/share/applications/io.github.hikarilucky79.keyra.desktop"
+    cat <<EOF > "$HOME/.local/share/applications/io.github.hikarilucky79.keyra.desktop"
+[Desktop Entry]
+Name=Keyra
+Comment=Premium Keyboard Audio Feedback Configuration
+Exec=$HOME/.local/bin/keyra %U
+Icon=io.github.hikarilucky79.keyra
+Terminal=false
+Type=Application
+Categories=Utility;Settings;Audio;
+Keywords=keyboard;audio;sound;typing;mechanical;visualizer;
+StartupNotify=true
+EOF
+    
+    # 6. Atualizar a base de dados de atalhos do sistema para que apareça na pesquisa
+    echo "-> Atualizando cache de pesquisa de aplicativos..."
+    if command -v update-desktop-database &> /dev/null; then
+        update-desktop-database "$HOME/.local/share/applications"
+    fi
+    
+    echo -e "${GREEN}✓ Keyra integrado com sucesso! O aplicativo agora aparecerá quando pesquisar no PC.${NC}\n"
 }
 
 # ==========================================
@@ -198,10 +263,21 @@ case "$OPTION" in
         executar_build_local
         ;;
     2)
+        chmod +x "$WORKSPACE_DIR/packaging/build_flatpak.sh"
+        "$WORKSPACE_DIR/packaging/build_flatpak.sh"
+        ;;
+    3)
+        chmod +x "$WORKSPACE_DIR/packaging/build_arch.sh"
+        "$WORKSPACE_DIR/packaging/build_arch.sh"
+        ;;
+    4)
+        integrar_atalho_sistema
+        ;;
+    5)
         preparar_repositorio_git
         publicar_github
         ;;
-    3)
+    6)
         executar_build_local
         preparar_repositorio_git
         publicar_github
