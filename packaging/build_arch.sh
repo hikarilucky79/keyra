@@ -33,10 +33,11 @@ rm -rf src/ pkg/ cargo-home/
 echo -e "\n${BLUE}-> Executando 'makepkg' para compilar e empacotar...${NC}"
 makepkg -c -s --noconfirm
 
-echo -e "\n${GREEN}==================================================${NC}"
-echo -e "${GREEN}✓ Pacote Arch Linux compilado com sucesso!${NC}"
-echo -e "${GREEN}==================================================${NC}"
-echo -e "Arquivo gerado em packaging/:"
-ls -lh "$PACKAGING_DIR"/keyra-git-*.pkg.tar.zst
-echo -e "\nPara instalar o pacote localmente, execute:"
-echo -e "  ${BLUE}sudo pacman -U packaging/keyra-git-*.pkg.tar.zst${NC}\n"
+  # Show final package location
+  echo -e "\n${GREEN}==================================================${NC}"
+  echo -e "${GREEN}✓ Pacote Arch Linux compilado com sucesso!${NC}"
+  echo -e "${GREEN}==================================================${NC}"
+  echo -e "Arquivo gerado em packaging/:"
+  ls -lh "$PACKAGING_DIR"/keyra-git-*.pkg.tar.zst
+  echo -e "\nPronto para instalar:"
+  echo -e "  ${BLUE}sudo pacman -U packaging/keyra-git-*.pkg.tar.zst${NC}\n"

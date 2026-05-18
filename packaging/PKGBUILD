@@ -1,42 +1,39 @@
 pkgname=keyra-git
 pkgver=0.1.0
-pkgrel=1
+pkgrel=2
 pkgdesc="Premium low-latency typing sound engine and UI"
 arch=('x86_64')
-url="https://github.com/hikari/keyra" # Atualize com a URL real do projeto futuramente
+url="https://github.com/hikarilucky79/keyra"
 license=('GPL3')
-depends=('gtk3' 'alsa-lib' 'glibc' 'gcc-libs')
-makedepends=('rust' 'cargo')
+depends=('gtk3' 'alsa-lib' 'glibc' 'gcc-libs' 'openssl' 'zstd')
+makedepends=('rust' 'cargo' 'git' 'pkgconf' 'cmake')
 provides=('keyra')
 conflicts=('keyra')
-# Para compilação e empacotamento local, o PKGBUILD acessa a pasta do workspace diretamente.
-# Quando for publicado no AUR, use: source=("git+https://github.com/hikari/keyra.git")
+# Build local: acessa o workspace diretamente; para AUR use PKGBUILD.production
 source=()
 md5sums=()
 
 build() {
-  cd "$startdir/../keyra-daemon"
-  export CARGO_HOME="$srcdir/cargo-home"
-
-  # Limpar flags do makepkg que interferem no compilador de dependências C do Rust (como zstd-sys)
-  unset CFLAGS
-  unset CXXFLAGS
-  unset LDFLAGS
-  unset RUSTFLAGS
-
-  cargo build --release
+  # IMPORTANT: compilar da raiz do workspace (há Cargo.toml com [workspace] na raiz)
+  # O target/ fica em keyra/target/, NAO em keyra/keyra-daemon/target/
+  cd "$startdir/.."
+  unset CFLAGS CXXFLAGS LDFLAGS RUSTFLAGS
+  cargo build --release --locked -p keyra-daemon
 
   cd "$startdir/../keyra-flutter"
-  unset CFLAGS
-  unset CXXFLAGS
-  unset LDFLAGS
-  unset RUSTFLAGS
+  unset CFLAGS CXXFLAGS LDFLAGS RUSTFLAGS
   flutter build linux --release
 }
 
 package() {
-  # 1. Instalar o Daemon
-  install -Dm755 "$startdir/../keyra-daemon/target/release/keyra-daemon" "$pkgdir/usr/bin/keyra-daemon"
+  # O binario fica em target/ da raiz do workspace (nao no crate keyra-daemon/target/)
+  local daemon_bin="$startdir/../target/release/keyra-daemon"
+  if [ ! -f "$daemon_bin" ]; then
+    echo "ERRO: keyra-daemon nao encontrado em $daemon_bin"
+    ls "$startdir/../target/release/" 2>/dev/null || true
+    exit 1
+  fi
+  install -Dm755 "$daemon_bin" "$pkgdir/usr/bin/keyra-daemon"
 
   # 2. Instalar a UI (Flutter bundle) no /opt/keyra
   mkdir -p "$pkgdir/opt/keyra"

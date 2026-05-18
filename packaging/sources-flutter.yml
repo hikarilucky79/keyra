@@ -1,0 +1,24 @@
+name: keyra-daemon
+buildsystem: simple
+build-commands:
+  - cargo build --release
+  - install -Dm0755 target/release/keyra-daemon -t /app/bin/
+sources:
+  - type: git
+    url: https://github.com/hikarilucky79/keyra.git
+    tag: v0.1.0
+    commit: d25940bedfbe6cc57f8b9ed4942f4ea418bd84cc
+
+name: keyra-flutter
+buildsystem: simple
+build-commands:
+  - flutter pub get
+  - flutter build linux --release
+  - install -Dm0755 build/linux/x64/release/bundle/keyra_app -t /app/bin/
+  - cp -r build/linux/x64/release/bundle/data /app/bin/
+  - cp -r build/linux/x64/release/bundle/lib /app/bin/
+sources:
+  - type: git
+    url: https://github.com/hikarilucky79/keyra.git
+    tag: v0.1.0
+    commit: d25940bedfbe6cc57f8b9ed4942f4ea418bd84cc

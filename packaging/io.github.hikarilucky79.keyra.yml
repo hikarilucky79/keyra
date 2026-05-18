@@ -1,73 +1,71 @@
 app-id: io.github.hikarilucky79.keyra
 runtime: org.gnome.Platform
-runtime-version: '46'
+runtime-version: '48'
 sdk: org.gnome.Sdk
 sdk-extensions:
   - org.freedesktop.Sdk.Extension.rust-stable
+  - org.freedesktop.Sdk.Extension.zopfli
 
 command: keyra-launcher
 
 finish-args:
-  # Graphical socket access (X11 & Wayland)
   - --socket=x11
   - --socket=wayland
   - --share=ipc
-  
-  # Sound output
   - --socket=pulseaudio
-  
-  # System-wide input event monitoring (/dev/input/event* for typing sound generation)
   - --device=all
-  
-  # Notifications
   - --talk-name=org.freedesktop.Notifications
-  
-  # IPC communication for tray and desktop integration
   - --own-name=org.keyra.app
 
 build-options:
   append-path: /usr/lib/sdk/rust-stable/bin
   env:
     CARGO_HOME: /run/build/keyra/cargo
+    FLUTTER_ENGINE_VERSION: 3.24.0
 
 modules:
-  - name: keyra
+  - name: keyra-daemon
     buildsystem: simple
     build-commands:
-      # 1. Compile the Rust keyra-daemon from source
-      - cargo build --release --manifest-path keyra-daemon/Cargo.toml
+      - cargo build --release
       - install -Dm0755 target/release/keyra-daemon -t /app/bin/
+    sources:
+      - type: git
+        url: https://github.com/hikarilucky79/keyra.git
+        tag: v0.1.0
+        commit: d25940bedfbe6cc57f8b9ed4942f4ea418bd84cc
 
-      # 2. Package the Flutter front-end bundle (assumes flutter build linux has run)
-      - install -Dm0755 keyra-flutter/build/linux/x64/release/bundle/keyra_app -t /app/bin/
-      - cp -r keyra-flutter/build/linux/x64/release/bundle/data /app/bin/
-      - cp -r keyra-flutter/build/linux/x64/release/bundle/lib /app/bin/
+  - name: keyra-flutter
+    buildsystem: simple
+    build-commands:
+      - flutter pub get
+      - flutter build linux --release
+      - install -Dm0755 build/linux/x64/release/bundle/keyra_app -t /app/bin/
+      - cp -r build/linux/x64/release/bundle/data /app/bin/
+      - cp -r build/linux/x64/release/bundle/lib /app/bin/
+    sources:
+      - type: git
+        url: https://github.com/hikarilucky79/keyra.git
+        tag: v0.1.0
+        commit: d25940bedfbe6cc57f8b9ed4942f4ea418bd84cc
 
-      # 3. Install integration desktop shortcut and AppStream metadata
+  - name: keyra-launcher
+    buildsystem: simple
+    build-commands:
+      - install -Dm0755 keyra-launcher /app/bin/keyra-launcher
+    sources:
+      - type: file
+        path: packaging/keyra-launcher.sh
+
+  - name: integration
+    buildsystem: simple
+    build-commands:
       - install -Dm0644 packaging/io.github.hikarilucky79.keyra.desktop -t /app/share/applications/
       - install -Dm0644 packaging/io.github.hikarilucky79.keyra.metainfo.xml -t /app/share/metainfo/
-      
-      # 4. Install high-resolution application icon
       - install -Dm0644 app_logo.png /app/share/icons/hicolor/256x256/apps/io.github.hikarilucky79.keyra.png
-
-      # 5. Create launcher entry point script
-      - |
-        cat << 'EOF' > /app/bin/keyra-launcher
-        #!/bin/sh
-        # Ensure plugins find bundled shared libraries
-        export LD_LIBRARY_PATH="/app/bin/lib:$LD_LIBRARY_PATH"
-
-        # Start keyra-daemon in the background if not already active
-        if ! pgrep -x "keyra-daemon" > /dev/null; then
-            /app/bin/keyra-daemon &
-        fi
-
-        # Change directory to where assets and AOT data resides, and execute
-        cd /app/bin
-        exec ./keyra_app "$@"
-        EOF
-      - chmod +x /app/bin/keyra-launcher
-
+      - install -Dm0644 app_logo.png /app/share/icons/hicolor/scalable/apps/io.github.hikarilucky79.keyra.png
     sources:
-      - type: dir
-        path: ..
+      - type: git
+        url: https://github.com/hikarilucky79/keyra.git
+        tag: v0.1.0
+        commit: d25940bedfbe6cc57f8b9ed4942f4ea418bd84cc
